@@ -9,6 +9,10 @@
 #include <QDebug>
 #include <QDragEnterEvent>
 #include <QDropEvent>
+#include <QMenuBar>
+#include <QToolBar>
+#include <QPrintDialog>
+#include <QPrinter>
 
 //可以感受到Qt本身还是帮忙做了很多事的
 //有没有办法让WindowTitle自动随着m_currentFilePath变化
@@ -18,6 +22,41 @@ void MainWindow::onTextChanged(){
         m_isTextChanged = true;
         setWindowTitle("*" + windowTitle()); //修改时标题也变化
     }
+}
+
+void MainWindow::updateRowCol(int row, int col){
+    m_statusLabel.setText(QString().sprintf("Ln: %d   Col: %d", row, col));
+}
+
+void MainWindow::onCursorPositonChanged(){
+    int pos = m_mainEditor.textCursor().position();
+    const QString &txt = m_mainEditor.toPlainText();
+    int row = 1, col = 1;
+    for(int i = 0; i < pos; i++){ //遍历到光标所在位置即可
+        if(txt[i] == '\n'){
+            row++;
+            col = 0;
+        }
+        col++;
+    }
+    updateRowCol(row, col);
+}
+
+void MainWindow::onCopyAvailable(bool available){
+    mapMenuBar["Copy"]->setEnabled(available);
+    mapToolBar["Copy"]->setEnabled(available);
+    mapMenuBar["Cut"]->setEnabled(available);
+    mapToolBar["Cut"]->setEnabled(available);
+}
+
+void MainWindow::onRedoAvailable(bool available){
+    mapMenuBar["Redo"]->setEnabled(available);
+    mapToolBar["Redo"]->setEnabled(available);
+}
+
+void MainWindow::onUndoAvailable(bool available){
+    mapMenuBar["Undo"]->setEnabled(available);
+    mapToolBar["Undo"]->setEnabled(available);
 }
 
 void MainWindow::saveCurrentData(QString filepath){ //如果传入filepath为空那就是生成一个新文件
@@ -124,40 +163,20 @@ void MainWindow::closeEvent(QCloseEvent *e){
     }
 }
 
-void MainWindow::onCloseFile(){
-    qDebug() << "onCloseFile";
-}
-
 void MainWindow::onPrint(){
     qDebug() << "onPrint";
+
+    QPrintDialog dlg(this);
+    dlg.setWindowTitle("Choose a printer");
+
+    if(dlg.exec() == QPrintDialog::Accepted){
+        QPrinter *printer = dlg.printer();
+        m_mainEditor.print(printer);
+    }
 }
 
 void MainWindow::onExit(){
     qDebug() << "onExit";
-}
-
-void MainWindow::onUndo(){
-    qDebug() << "onUndo";
-}
-
-void MainWindow::onRedo(){
-    qDebug() << "onRedo";
-}
-
-void MainWindow::onCut(){
-    qDebug() << "onCut";
-}
-
-void MainWindow::onCopy(){
-    qDebug() << "onCopy";
-}
-
-void MainWindow::onPaste(){
-    qDebug() << "onPaste";
-}
-
-void MainWindow::onWrap(){
-    qDebug() << "onWrap";
 }
 
 void MainWindow::onFind(){
