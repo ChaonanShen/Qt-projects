@@ -18,6 +18,8 @@ MainWindow::MainWindow(QWidget *parent)
     initStatusBar();
     initMainEdit();
     updateTitle();
+
+    setAcceptDrops(true);// 接受拖放事件
 }
 
 void MainWindow::updateTitle(){
@@ -75,7 +77,7 @@ void MainWindow::initMenu(){
     QMenuBar *mb = menuBar();
     //file menu
     QMenu *fileMenu = new QMenu("File", mb); //这里必须直接指定parent，只靠addMenu不能设置（感觉是Qt的bug）
-    fileMenu->addAction("New File", this, SLOT(onNewFile()), QKeySequence(Qt::CTRL+Qt::Key_N));
+    fileMenu->addAction("New File", this, SLOT(onNewFile()), QKeySequence(Qt::CTRL+Qt::Key_N)); //连接的是triggered信号
     fileMenu->addAction("Open File", this, SLOT(onOpenFile()), QKeySequence(Qt::CTRL+Qt::Key_O));
     fileMenu->addAction("Save File", this, SLOT(onSaveFile()), QKeySequence(Qt::CTRL+Qt::Key_S));
     fileMenu->addAction("Save As", this, SLOT(onSaveAs()), QKeySequence(Qt::CTRL+Qt::ALT+Qt::Key_S));

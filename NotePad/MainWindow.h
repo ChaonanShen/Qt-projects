@@ -22,6 +22,7 @@ class MainWindow : public QMainWindow
     bool m_isTextChanged;
     void saveCurrentData(QString filepath=""); //保存后m_isTextChanged设为false
     void preEditorChange();
+    void openFileToEditor(QString filepath);
 
     void initMenu();
     void initToolBar();
@@ -55,6 +56,13 @@ private slots: //这个函数实现文件要与UI的实现分开
     void onFindNext();
     void onFindPrev();
     void onReplace();
+
+protected:
+    void closeEvent(QCloseEvent *); //重写父类QWidget的一个事件函数
+    //重写拖放事件
+    void dragEnterEvent(QDragEnterEvent *);
+    void dropEvent(QDropEvent *);
+
 public:
     MainWindow(QWidget *parent = 0);
     ~MainWindow();

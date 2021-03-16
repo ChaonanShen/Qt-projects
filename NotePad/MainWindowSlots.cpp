@@ -2,7 +2,13 @@
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QTextStream>
+#include <QMap>
+#include <QCloseEvent>
+#include <QList>
+#include <QUrl>
 #include <QDebug>
+#include <QDragEnterEvent>
+#include <QDropEvent>
 
 //¿ÉÒÔ¸ĞÊÜµ½Qt±¾Éí»¹ÊÇ°ïÃ¦×öÁËºÜ¶àÊÂµÄ
 //ÓĞÃ»ÓĞ°ì·¨ÈÃWindowTitle×Ô¶¯Ëæ×Åm_currentFilePath±ä»¯
@@ -46,8 +52,29 @@ void MainWindow::preEditorChange() { //ÔÚĞèÒª¸Ä¶¯mainEditorÊ±ºòÏÈµ÷ÓÃ£¬Ö÷ÒªÔÚope
         case QMessageBox::No:
             m_isTextChanged = false; //Ö±½Ó·ÅÆúµ±Ç°Êı¾İ
             break;
-        case QMessageBox::Cancel: //É¶¶¼²»¸É£¬Ò²²»ÔÙ´ò¿ªÎÄ¼ş
+        case QMessageBox::Cancel:
+            /*
+              É¶¶¼²»¸É£¬Ò²²»ÔÙÖ´ĞĞºóĞø²Ù×÷£¨ÒªÈÃºóĞø²Ù×÷Ö»ÄÜÔÚm_isTextChanged=true²ÅÄÜ²Ù×÷£©
+              ÕâµãÌØ±ğ×¢Òâ£¬preEditorChangeºóÃæµÄ²Ù×÷±ØĞëÅĞ¶Ïm_isTextChanged=false²ÅÄÜ¼ÌĞø
+              Õâµã×îºóÒª¼ì²éÏÂ£¡¿´¿´ÓĞÃ»ÓĞÍüÁËÅĞ¶Ï
+            */
             break;
+        }
+    }
+}
+
+void MainWindow::openFileToEditor(QString filepath){
+    if(filepath != "") {
+        QFile file(filepath);
+        if(file.open(QIODevice::ReadOnly | QIODevice::Text)){
+            m_mainEditor.setPlainText(QString(file.readAll()));
+            m_currentFilePath = filepath;
+            updateTitle();
+            m_isTextChanged = false;
+            file.close();
+        }
+        else{ //µ¯³öÒ»¸ö¶Ô»°¿ò¸æÖª´ò¿ªÊ§°Ü
+            showErrorMessage(QString().sprintf("can't open file\n%s", filepath.toStdString().c_str()));
         }
     }
 }
@@ -57,21 +84,8 @@ void MainWindow::onOpenFile(){
 
     preEditorChange(); //ÒªĞŞ¸ÄmainEditorÇ°µ÷ÓÃ
     if(!m_isTextChanged){
-        QString fname = showOpenFileDialog(QFileDialog::AcceptOpen, "Open");
-
-        if(fname != "") {
-            QFile file(fname);
-            if(file.open(QIODevice::ReadOnly | QIODevice::Text)){
-                m_mainEditor.setPlainText(QString(file.readAll()));
-                m_currentFilePath = fname;
-                updateTitle();
-                m_isTextChanged = false;
-                file.close();
-            }
-            else{ //µ¯³öÒ»¸ö¶Ô»°¿ò¸æÖª´ò¿ªÊ§°Ü
-                showErrorMessage(QString().sprintf("can't open file\n%s", fname.toStdString().c_str()));
-            }
-        }
+        QString fpath = showOpenFileDialog(QFileDialog::AcceptOpen, "Open");
+        openFileToEditor(fpath);
     }
 }
 
@@ -98,6 +112,16 @@ void MainWindow::onSaveFile(){ //Èç¹ûÊÇÒ»¸öÒÑ´æÔÚÎÄ¼ş¾ÍÖ±½Ósave£¬Èç¹ûÊÇĞÂÎÄ¼ş¾ÍĞ
 void MainWindow::onSaveAs(){
     qDebug() << "onSaveAs";
     saveCurrentData(); //ĞÂ½¨Ò»¸öÎÄ¼şÔÙsave
+}
+
+void MainWindow::closeEvent(QCloseEvent *e){
+    preEditorChange(); //ÒªĞŞ¸ÄMainEditorÇ°µ÷ÓÃ
+    if(!m_isTextChanged){
+        QMainWindow::closeEvent(e); //Ö±½ÓÕı³£¹Ø±Õ
+    }
+    else{ //ÓÃ»§Ñ¡Ôñcancel¾Í²»»á¹Ø±Õ
+        e->ignore(); //ºöÂÔµ±Ç°ĞŞ¸Ä²Ù×÷
+    }
 }
 
 void MainWindow::onCloseFile(){
@@ -152,6 +176,34 @@ void MainWindow::onReplace(){
     qDebug() << "onReplace";
 }
 
+void MainWindow::dragEnterEvent(QDragEnterEvent *e){
+    if(e->mimeData()->hasUrls()){
+        e->acceptProposedAction();
+    }
+    else{
+        e->ignore();
+    }
+}
+
+void MainWindow::dropEvent(QDropEvent *e){
+    if(e->mimeData()->hasUrls()){
+        QList<QUrl> urls = e->mimeData()->urls();
+        QString path = urls[0].toLocalFile();
+        QFileInfo finfo(path);
+        if(finfo.isFile()) {
+            preEditorChange(); //ÓĞ±ØÒªÏÈ±£´æµ±Ç°ÎÄ¼ş
+            if(!m_isTextChanged){
+                openFileToEditor(path); //Ä¿Ç°Ö»ÄÜ´ò¿ªÒ»¸öÎÄ¼ş£¬ÒÔºó»áÊµÏÖ¶àÎÄ¼ş
+            }
+        } else{
+            showErrorMessage(path + " is not a text file!");
+        }
+    }
+    else{
+        e->ignore();
+    }
+}
+
 //Title-Error or Warning
 void MainWindow::showErrorMessage(QString Message){ //Ö»ÊÇÏÔÊ¾ÏÂĞÅÏ¢
     QMessageBox msg(this);
@@ -185,10 +237,20 @@ QString MainWindow::showOpenFileDialog(QFileDialog::AcceptMode mode, QString tit
     QFileDialog fd(this); //´ò¿ªÎÄ¼şÑ¡Ôñ¶Ô»°¿ò
 
     QStringList filters; //¹ıÂËÎÄ¼ş
-    filters.append("All Files (*)");
-    filters.append("Text Files (*.txt)");
-    filters.append("Cpp Files (*.cpp)");
-    filters.append("C Files (*.c)");
+    QMap<QString, QString> suffixMap;
+
+    const char* filterArr[][2] = {
+        {"Text Files (*.txt)", ".txt"},
+        {"Cpp Files (*.cpp)", ".cpp"},
+        {"C Files (*.c)", ".c"},
+        {"All Files (*)", "*"},
+        {NULL, NULL}
+    };
+
+    for(int i = 0; filterArr[i][0] != NULL; i++){
+        filters.append(filterArr[i][0]);
+        suffixMap[filterArr[i][0]] = filterArr[i][1];
+    }
 
     fd.setWindowTitle(title);
     fd.setAcceptMode(mode);
@@ -201,6 +263,13 @@ QString MainWindow::showOpenFileDialog(QFileDialog::AcceptMode mode, QString tit
     QString ret = "";
     if(fd.exec() == QFileDialog::Accepted){
         ret = fd.selectedFiles()[0];
+
+        if(mode == QFileDialog::AcceptSave){ //±£´æÄ£Ê½¿´ÊÇ·ñÒª¼ÓÉÏºó×º
+            QString suffix = suffixMap[fd.selectedNameFilter()]; //ÓÃ»§Ñ¡ÔñµÄÎÄ¼şÀàĞÍ¶ÔÓ¦µÄºó×º
+            if(suffix != "*" && !ret.endsWith(suffix)){ //ÈôÊÇÓÃ»§Ã»ÓĞÌí¼Óºó×º¾Í°ïÃ¦¼ÓÉÏ
+                ret += suffix; //ÓĞÒ»¸öÎÊÌâ£¬ÕâÀïÖ»ÊÇÔÚ·µ»ØµÄÎÄ¼şÃûÖĞ¼ÓÉÏÁËºó×º£¬ÎªÊ²Ã´±£´æµÄÎÄ¼şÖĞÒ²¼ÓÉÏÁËºó×º£¿ÄÑµÀ²»ÊÇÕâ¸öº¯ÊıÖĞ¾Í±£´æÁËµÄ£¿
+            }
+        }
     }
 
     return ret;
